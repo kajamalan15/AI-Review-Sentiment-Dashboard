@@ -11,10 +11,7 @@ The AI Review Sentiment Dashboard is a web-based application designed for e-comm
          Upload reviews in CSV or TXT format.
          Display sentiment trends (positive, negative, neutral) over time.
          Generate tag clouds for frequent words in reviews.
-
-
-Revenue Model: Tiered pricing based on review volume (e.g., Free: 100 reviews/month, Premium: 1000+ reviews/month).
-
+         
 Prerequisites
 
   Python 3.12.6
