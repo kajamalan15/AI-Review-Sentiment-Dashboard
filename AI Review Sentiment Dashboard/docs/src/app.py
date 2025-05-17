@@ -20,38 +20,89 @@ stopwords = set(STOPWORDS)
 if 'theme' not in st.session_state:
     st.session_state.theme = 'light'
 
-# Define CSS for light and dark modes
+# Define CSS for light and dark modes with improved alignments
 light_mode_css = """
 <style>
     .main {
-        background-color: #ffffff;
-        color: #000000;
+        background-color: #f9f9f9;
+        color: #333333;
+        padding: 20px;
+        min-height: 100vh;
     }
     .stSidebar {
-        background-color: #f0f2f6;
+        background-color: #e8ecef;
+        padding: 15px;
+        border-right: 1px solid #d1d3d4;
     }
     .stButton>button {
-        background-color: #4CAF50;
+        background-color: #28a745;
         color: white;
+        border-radius: 8px;
+        padding: 10px 20px;
+        transition: background-color 0.3s ease;
+    }
+    .stButton>button:hover {
+        background-color: #218838;
     }
     .stSelectbox, .stFileUploader {
         background-color: #ffffff;
-        color: #000000;
+        color: #333333;
+        border: 1px solid #ced4da;
+        border-radius: 5px;
+        padding: 5px;
     }
     h1, h2, h3, h4, h5, h6 {
-        color: #000000;
+        color: #2c3e50;
+        margin-bottom: 15px;
     }
     .download-container {
         position: fixed;
-        top: 10px;
-        right: 10px;
+        top: 15px;
+        right: 20px;
         z-index: 1000;
+        display: flex;
+        justify-content: flex-end;
     }
     .download-container .stButton>button {
-        background-color: #4CAF50;
+        background-color: #007bff;
         color: white;
-        border-radius: 5px;
-        padding: 10px 20px;
+        border-radius: 8px;
+        padding: 12px 24px;
+        font-weight: 500;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    .download-container .stButton>button:hover {
+        background-color: #0056b3;
+    }
+    .section-container {
+        margin-bottom: 30px;
+        padding: 20px;
+        background-color: #ffffff;
+        border-radius: 10px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+    .how-it-works {
+        display: flex;
+        gap: 20px;
+        flex-wrap: wrap;
+        justify-content: space-between;
+    }
+    .how-it-works .stColumn {
+        flex: 1;
+        min-width: 200px;
+        padding: 15px;
+        background-color: #f1f3f5;
+        border-radius: 8px;
+    }
+    @media (max-width: 768px) {
+        .download-container {
+            position: static;
+            margin: 10px 0;
+            justify-content: center;
+        }
+        .how-it-works {
+            flex-direction: column;
+        }
     }
 </style>
 """
@@ -59,34 +110,88 @@ light_mode_css = """
 dark_mode_css = """
 <style>
     .main {
-        background-color: #1e1e1e;
-        color: #ffffff;
+        background-color: #222222;
+        color: #e0e0e0;
+        padding: 20px;
+        min-height: 100vh;
     }
     .stSidebar {
-        background-color: #2c2c2c;
+        background-color: #2d2d2d;
+        padding: 15px;
+        border-right: 1px solid #444444;
     }
     .stButton>button {
-        background-color: #4CAF50;
+        background-color: #28a745;
         color: white;
+        border-radius: 8px;
+        padding: 10px 20px;
+        transition: background-color 0.3s ease;
+    }
+    .stButton>button:hover {
+        background-color: #218838;
     }
     .stSelectbox, .stFileUploader {
         background-color: #333333;
-        color: #ffffff;
+        color: #e0e0e0;
+        border: 1px solid #555555;
+        border-radius: 5px;
+        padding: 5px;
     }
     h1, h2, h3, h4, h5, h6 {
         color: #ffffff;
+        margin-bottom: 15px;
     }
     .download-container {
         position: fixed;
-        top: 10px;
-        right: 10px;
+        top: 15px;
+        right: 20px;
         z-index: 1000;
+        display: flex;
+        del-right: 20px;
+        z-index: 1000;
+        display: flex;
+        justify-content: flex-end;
     }
     .download-container .stButton>button {
-        background-color: #4CAF50;
+        background-color: #007bff;
         color: white;
-        border-radius: 5px;
-        padding: 10px 20px;
+        border-radius: 8px;
+        padding: 12px 24px;
+        font-weight: 500;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+    .download-container .stButton>button:hover {
+        background-color: #0056b3;
+    }
+    .section-container {
+        margin-bottom: 30px;
+        padding: 20px;
+        background-color: #2c2c2c;
+        border-radius: 10px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+    .how-it-works {
+        display: flex;
+        gap: 20px;
+        flex-wrap: wrap;
+        justify-content: space-between;
+    }
+    .how-it-works .stColumn {
+        flex: 1;
+        min-width: 200px;
+        padding: 15px;
+        background-color: #3a3a3a;
+        border-radius: 8px;
+    }
+    @media (max-width: 768px) {
+        .download-container {
+            position: static;
+            margin: 10px 0;
+            justify-content: center;
+        }
+        .how-it-works {
+            flex-direction: column;
+        }
     }
 </style>
 """
@@ -130,7 +235,7 @@ if page == "Home":
     
     # File upload section
     st.markdown("""
-    <div style='border: 2px dashed #ccc; padding: 20px; text-align: center; margin: 20px 0;'>
+    <div style='border: 2px dashed #ccc; padding: 20px; text-align: center; margin: 20px 0; border-radius: 8px;'>
         <p>Drag & drop your review file here</p>
         <p>CSV or TXT supported, up to 10MB.</p>
     </div>
@@ -142,8 +247,9 @@ if page == "Home":
         st.session_state.page = "Dashboard"
         st.rerun()
     
-    # How It Works section
+    # How It Works section with improved alignment
     st.subheader("How It Works")
+    st.markdown('<div class="how-it-works">', unsafe_allow_html=True)
     col1, col2, col3, col4 = st.columns(4)
     with col1:
         st.markdown("**Upload Your Data**")
@@ -157,10 +263,11 @@ if page == "Home":
     with col4:
         st.markdown("**Detailed Review Table**")
         st.write("Explore individual reviews with their predicted sentiment labels in a searchable table.")
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # Page 2: Dashboard
 elif page == "Dashboard":
-    st.title("🧠 AI Review Sentiment Dashboard")
+    st.title(" AI Review Sentiment Dashboard")
     st.write("Upload a review CSV to analyze sentiments, word clouds, and download a report.")
 
     # File upload (using the file from Home page if available)
@@ -234,49 +341,64 @@ elif page == "Dashboard":
             st.markdown('</div>', unsafe_allow_html=True)
 
             # Review preview
-            st.subheader("📝 Review List with Sentiment")
+            st.markdown('<div class="section-container">', unsafe_allow_html=True)
+            st.subheader(" Review List with Sentiment")
             st.dataframe(filtered_df[[review_col, 'Sentiment_VADER', 'Sentiment_TextBlob', 'Sentiment_BERT', 'ReviewDate', 'Company']].head(20))
+            st.markdown('</div>', unsafe_allow_html=True)
 
             # Sentiment counts
-            st.subheader("📊 Sentiment Count Summary")
+            st.markdown('<div class="section-container">', unsafe_allow_html=True)
+            st.subheader(" Sentiment Count Summary")
             st.write("VADER Sentiment Counts:")
             st.write(filtered_df['Sentiment_VADER'].value_counts())
             st.write("TextBlob Sentiment Counts:")
             st.write(filtered_df['Sentiment_TextBlob'].value_counts())
             st.write("BERT Sentiment Counts:")
             st.write(filtered_df['Sentiment_BERT'].value_counts())
+            st.markdown('</div>', unsafe_allow_html=True)
 
             # Pie Chart
-            st.subheader("🥧 VADER Sentiment Pie Chart")
+            st.markdown('<div class="section-container">', unsafe_allow_html=True)
+            st.subheader(" VADER Sentiment Pie Chart")
             vader_counts = filtered_df['Sentiment_VADER'].value_counts().reset_index()
             vader_counts.columns = ['Sentiment', 'Count']
             fig = px.pie(vader_counts, names='Sentiment', values='Count', title='Sentiment Distribution (VADER)')
-            st.plotly_chart(fig)
+            st.plotly_chart(fig, use_container_width=True)
+            st.markdown('</div>', unsafe_allow_html=True)
 
             # Bar Chart: Sentiment by Company
-            st.subheader("🏢 Sentiment by Company (VADER)")
+            st.markdown('<div class="section-container">', unsafe_allow_html=True)
+            st.subheader(" Sentiment by Company (VADER)")
             company_sentiment = filtered_df.groupby(['Company', 'Sentiment_VADER']).size().reset_index(name='Count')
             fig = px.bar(company_sentiment, x='Company', y='Count', color='Sentiment_VADER', barmode='group')
-            st.plotly_chart(fig)
+            st.plotly_chart(fig, use_container_width=True)
+            st.markdown('</div>', unsafe_allow_html=True)
 
             # Monthly breakdown
-            st.subheader("📆 Monthly Sentiment Breakdown")
+            st.markdown('<div class="section-container">', unsafe_allow_html=True)
+            st.subheader(" Monthly Sentiment Breakdown")
             month_summary = filtered_df.groupby(['Month', 'Sentiment_VADER']).size().unstack().fillna(0)
-            st.dataframe(month_summary)
+            st.dataframe(month_summary, use_container_width=True)
+            st.markdown('</div>', unsafe_allow_html=True)
 
             # Monthly Stacked Bar Chart
-            st.subheader("📊 Monthly Sentiment Bar Chart")
+            st.markdown('<div class="section-container">', unsafe_allow_html=True)
+            st.subheader(" Monthly Sentiment Bar Chart")
             fig = px.bar(month_summary, x=month_summary.index, y=month_summary.columns,
                         title="Monthly VADER Sentiment", labels={'value': 'Count', 'Month': 'Month'})
-            st.plotly_chart(fig)
+            st.plotly_chart(fig, use_container_width=True)
+            st.markdown('</div>', unsafe_allow_html=True)
 
             # Trend chart
-            st.subheader("📈 Sentiment Trend Over Time")
+            st.markdown('<div class="section-container">', unsafe_allow_html=True)
+            st.subheader(" Sentiment Trend Over Time")
             trend_data = filtered_df.groupby([pd.Grouper(key='ReviewDate', freq='D'), 'Sentiment_VADER']).size().unstack().fillna(0)
-            st.line_chart(trend_data)
+            st.line_chart(trend_data, use_container_width=True)
+            st.markdown('</div>', unsafe_allow_html=True)
 
             # Word cloud
-            st.subheader("☁️ Word Cloud")
+            st.markdown('<div class="section-container">', unsafe_allow_html=True)
+            st.subheader(" Word Cloud")
             sentiment_filter = st.selectbox("Filter Word Cloud by Sentiment", ["All", "Positive", "Negative", "Neutral"])
             wc_df = filtered_df
             if sentiment_filter != "All":
@@ -290,20 +412,21 @@ elif page == "Dashboard":
                 st.pyplot(fig)
             else:
                 st.warning("No text available for the selected filters.")
+            st.markdown('</div>', unsafe_allow_html=True)
 
             # Interactive Explorer
+            st.markdown('<div class="section-container">', unsafe_allow_html=True)
             st.subheader("🔍 Explore Reviews by Sentiment and Keyword")
             selected_sentiment = st.selectbox("Filter by VADER Sentiment", ["All", "Positive", "Negative", "Neutral"])
             keyword = st.text_input("Search keyword in reviews")
-
             explore_df = filtered_df
             if selected_sentiment != "All":
                 explore_df = explore_df[explore_df['Sentiment_VADER'] == selected_sentiment]
             if keyword:
                 explore_df = explore_df[explore_df[review_col].str.contains(keyword, case=False)]
-
             st.write(f"Found {len(explore_df)} matching reviews:")
-            st.dataframe(explore_df[[review_col, 'Sentiment_VADER', 'ReviewDate', 'Company']].head(50))
+            st.dataframe(explore_df[[review_col, 'Sentiment_VADER', 'ReviewDate', 'Company']].head(50), use_container_width=True)
+            st.markdown('</div>', unsafe_allow_html=True)
 
         except Exception as e:
             st.error(f"Error processing CSV: {str(e)}")
