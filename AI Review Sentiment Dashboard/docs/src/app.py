@@ -8,12 +8,102 @@ from textblob import TextBlob
 from transformers import pipeline
 import time
 import io
+import uuid
 
 # Setup
 st.set_page_config(page_title="Sentiment Insights", layout="wide")
 analyzer = SentimentIntensityAnalyzer()
 bert_analyzer = pipeline("sentiment-analysis", model="distilbert-base-uncased-finetuned-sst-2-english")
 stopwords = set(STOPWORDS)
+
+# Theme management
+if 'theme' not in st.session_state:
+    st.session_state.theme = 'light'
+
+# Define CSS for light and dark modes
+light_mode_css = """
+<style>
+    .main {
+        background-color: #ffffff;
+        color: #000000;
+    }
+    .stSidebar {
+        background-color: #f0f2f6;
+    }
+    .stButton>button {
+        background-color: #4CAF50;
+        color: white;
+    }
+    .stSelectbox, .stFileUploader {
+        background-color: #ffffff;
+        color: #000000;
+    }
+    h1, h2, h3, h4, h5, h6 {
+        color: #000000;
+    }
+    .download-container {
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        z-index: 1000;
+    }
+    .download-container .stButton>button {
+        background-color: #4CAF50;
+        color: white;
+        border-radius: 5px;
+        padding: 10px 20px;
+    }
+</style>
+"""
+
+dark_mode_css = """
+<style>
+    .main {
+        background-color: #1e1e1e;
+        color: #ffffff;
+    }
+    .stSidebar {
+        background-color: #2c2c2c;
+    }
+    .stButton>button {
+        background-color: #4CAF50;
+        color: white;
+    }
+    .stSelectbox, .stFileUploader {
+        background-color: #333333;
+        color: #ffffff;
+    }
+    h1, h2, h3, h4, h5, h6 {
+        color: #ffffff;
+    }
+    .download-container {
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        z-index: 1000;
+    }
+    .download-container .stButton>button {
+        background-color: #4CAF50;
+        color: white;
+        border-radius: 5px;
+        padding: 10px 20px;
+    }
+</style>
+"""
+
+# Apply theme based on session state
+def apply_theme():
+    if st.session_state.theme == 'dark':
+        st.markdown(dark_mode_css, unsafe_allow_html=True)
+    else:
+        st.markdown(light_mode_css, unsafe_allow_html=True)
+
+# Theme toggle button in sidebar
+st.sidebar.header("Theme Settings")
+theme_button = st.sidebar.button("Toggle Dark/Light Mode")
+if theme_button:
+    st.session_state.theme = 'dark' if st.session_state.theme == 'light' else 'light'
+apply_theme()
 
 # Plan selection
 st.sidebar.header("Select Pricing Plan")
@@ -68,7 +158,7 @@ if page == "Home":
         st.markdown("**Detailed Review Table**")
         st.write("Explore individual reviews with their predicted sentiment labels in a searchable table.")
 
-# Page 2: Dashboard (Your Original Codebase)
+# Page 2: Dashboard
 elif page == "Dashboard":
     st.title("🧠 AI Review Sentiment Dashboard")
     st.write("Upload a review CSV to analyze sentiments, word clouds, and download a report.")
@@ -127,6 +217,22 @@ elif page == "Dashboard":
             company_filter = st.selectbox("Select Company", ["All"] + df['Company'].unique().tolist())
             filtered_df = df if company_filter == "All" else df[df['Company'] == company_filter]
 
+            # Download report (positioned in top-right corner)
+            output = io.BytesIO()
+            with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                filtered_df.to_excel(writer, index=False, sheet_name='ReviewData')
+                filtered_df['Sentiment_VADER'].value_counts().to_frame(name='Count').to_excel(writer, sheet_name='SentimentCounts')
+                month_summary = filtered_df.groupby(['Month', 'Sentiment_VADER']).size().unstack().fillna(0)
+                month_summary.to_excel(writer, sheet_name='MonthlyBreakdown')
+            st.markdown('<div class="download-container">', unsafe_allow_html=True)
+            st.download_button(
+                label="Download Excel Report",
+                data=output.getvalue(),
+                file_name="sentiment_report.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+            st.markdown('</div>', unsafe_allow_html=True)
+
             # Review preview
             st.subheader("📝 Review List with Sentiment")
             st.dataframe(filtered_df[[review_col, 'Sentiment_VADER', 'Sentiment_TextBlob', 'Sentiment_BERT', 'ReviewDate', 'Company']].head(20))
@@ -140,36 +246,36 @@ elif page == "Dashboard":
             st.write("BERT Sentiment Counts:")
             st.write(filtered_df['Sentiment_BERT'].value_counts())
 
-            # ➕ Pie Chart
+            # Pie Chart
             st.subheader("🥧 VADER Sentiment Pie Chart")
             vader_counts = filtered_df['Sentiment_VADER'].value_counts().reset_index()
             vader_counts.columns = ['Sentiment', 'Count']
             fig = px.pie(vader_counts, names='Sentiment', values='Count', title='Sentiment Distribution (VADER)')
             st.plotly_chart(fig)
 
-            # ➕ Bar Chart: Sentiment by Company
+            # Bar Chart: Sentiment by Company
             st.subheader("🏢 Sentiment by Company (VADER)")
             company_sentiment = filtered_df.groupby(['Company', 'Sentiment_VADER']).size().reset_index(name='Count')
             fig = px.bar(company_sentiment, x='Company', y='Count', color='Sentiment_VADER', barmode='group')
             st.plotly_chart(fig)
 
-            # ➕ Monthly breakdown
+            # Monthly breakdown
             st.subheader("📆 Monthly Sentiment Breakdown")
             month_summary = filtered_df.groupby(['Month', 'Sentiment_VADER']).size().unstack().fillna(0)
             st.dataframe(month_summary)
 
-            # ➕ Monthly Stacked Bar Chart
+            # Monthly Stacked Bar Chart
             st.subheader("📊 Monthly Sentiment Bar Chart")
             fig = px.bar(month_summary, x=month_summary.index, y=month_summary.columns,
                         title="Monthly VADER Sentiment", labels={'value': 'Count', 'Month': 'Month'})
             st.plotly_chart(fig)
 
-            # ➕ Trend chart
+            # Trend chart
             st.subheader("📈 Sentiment Trend Over Time")
             trend_data = filtered_df.groupby([pd.Grouper(key='ReviewDate', freq='D'), 'Sentiment_VADER']).size().unstack().fillna(0)
             st.line_chart(trend_data)
 
-            # ➕ Word cloud
+            # Word cloud
             st.subheader("☁️ Word Cloud")
             sentiment_filter = st.selectbox("Filter Word Cloud by Sentiment", ["All", "Positive", "Negative", "Neutral"])
             wc_df = filtered_df
@@ -177,7 +283,7 @@ elif page == "Dashboard":
                 wc_df = wc_df[wc_df['Sentiment_VADER'] == sentiment_filter]
             all_text = ' '.join(wc_df[review_col])
             if all_text.strip():
-                wc = WordCloud(width=800, height=400, background_color='white', stopwords=stopwords).generate(all_text)
+                wc = WordCloud(width=800, height=400, background_color='white' if st.session_state.theme == 'light' else 'black', stopwords=stopwords).generate(all_text)
                 fig, ax = plt.subplots()
                 ax.imshow(wc, interpolation='bilinear')
                 ax.axis('off')
@@ -185,7 +291,7 @@ elif page == "Dashboard":
             else:
                 st.warning("No text available for the selected filters.")
 
-            # ➕ Interactive Explorer
+            # Interactive Explorer
             st.subheader("🔍 Explore Reviews by Sentiment and Keyword")
             selected_sentiment = st.selectbox("Filter by VADER Sentiment", ["All", "Positive", "Negative", "Neutral"])
             keyword = st.text_input("Search keyword in reviews")
@@ -198,20 +304,6 @@ elif page == "Dashboard":
 
             st.write(f"Found {len(explore_df)} matching reviews:")
             st.dataframe(explore_df[[review_col, 'Sentiment_VADER', 'ReviewDate', 'Company']].head(50))
-
-            # Download report
-            st.subheader("⬇️ Download Report")
-            output = io.BytesIO()
-            with pd.ExcelWriter(output, engine='openpyxl') as writer:
-                filtered_df.to_excel(writer, index=False, sheet_name='ReviewData')
-                filtered_df['Sentiment_VADER'].value_counts().to_frame(name='Count').to_excel(writer, sheet_name='SentimentCounts')
-                month_summary.to_excel(writer, sheet_name='MonthlyBreakdown')
-            st.download_button(
-                label="Download Excel Report",
-                data=output.getvalue(),
-                file_name="sentiment_report.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            )
 
         except Exception as e:
             st.error(f"Error processing CSV: {str(e)}")
