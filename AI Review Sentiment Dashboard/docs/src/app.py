@@ -8,7 +8,7 @@ from textblob import TextBlob
 from transformers import pipeline
 import time
 import io
-import uuid
+from collections import Counter
 
 # Setup
 st.set_page_config(page_title="Sentiment Insights", layout="wide")
@@ -301,7 +301,7 @@ apply_theme()
 
 # Theme toggle in top-right corner
 st.markdown('<div class="theme-toggle-container">', unsafe_allow_html=True)
-theme_button = st.button("🌙" if st.session_state.theme == 'light' else "☀️")
+theme_button = st.button("🌙" if st.session_state.theme == 'light' else "☀")
 if theme_button:
     st.session_state.theme = 'dark' if st.session_state.theme == 'light' else 'light'
     st.rerun()
@@ -350,16 +350,16 @@ if page == "Home":
     st.markdown('<div class="how-it-works">', unsafe_allow_html=True)
     col1, col2, col3, col4 = st.columns(4)
     with col1:
-        st.markdown("**Upload Your Data**")
+        st.markdown("*Upload Your Data*")
         st.write("Easily drag and drop or select your files in CSV or TXT format.")
     with col2:
-        st.markdown("**Fast Analysis**")
+        st.markdown("*Fast Analysis*")
         st.write("Our AI engine quickly processes your reviews to identify sentiment.")
     with col3:
-        st.markdown("**Visualize Insights**")
+        st.markdown("*Visualize Insights*")
         st.write("Get clear charts and summaries of sentiment trends and key topics.")
     with col4:
-        st.markdown("**Detailed Review Table**")
+        st.markdown("*Detailed Review Table*")
         st.write("Explore individual reviews with their predicted sentiment labels in a searchable table.")
     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -399,15 +399,24 @@ elif page == "Dashboard":
             @st.cache_data
             def analyze_sentiments(reviews):
                 def analyze_sentiment(text):
+                    if not isinstance(text, str) or not text.strip():
+                        return {
+                            'VADER': 'Neutral', 'TextBlob': 'Neutral', 'BERT': 'Neutral',
+                            'VADER_Score': 0.0, 'TextBlob_Score': 0.0, 'BERT_Score': 0.5
+                        }
                     vader_score = analyzer.polarity_scores(text)
                     vader_sentiment = 'Positive' if vader_score['compound'] >= 0.05 else 'Negative' if vader_score['compound'] <= -0.05 else 'Neutral'
-                    blob = TextBlob(text)
-                    blob_sentiment = 'Positive' if blob.sentiment.polarity > 0 else 'Negative' if blob.sentiment.polarity < 0 else 'Neutral'
+                    try:
+                        blob = TextBlob(text)
+                        blob_sentiment = 'Positive' if blob.sentiment.polarity > 0 else 'Negative' if blob.sentiment.polarity < 0 else 'Neutral'
+                        blob_score = blob.sentiment.polarity
+                    except:
+                        blob_sentiment, blob_score = 'Neutral', 0.0
                     bert_result = bert_analyzer(text[:512])[0]
                     bert_sentiment = 'Positive' if bert_result['label'] == 'POSITIVE' else 'Negative'
                     return {
                         'VADER': vader_sentiment, 'TextBlob': blob_sentiment, 'BERT': bert_sentiment,
-                        'VADER_Score': vader_score['compound'], 'TextBlob_Score': blob.sentiment.polarity, 'BERT_Score': bert_result['score']
+                        'VADER_Score': vader_score['compound'], 'TextBlob_Score': blob_score, 'BERT_Score': bert_result['score']
                     }
                 return [analyze_sentiment(text) for text in reviews]
 
@@ -514,17 +523,122 @@ elif page == "Dashboard":
 
             # Interactive Explorer
             st.markdown('<div class="section-container">', unsafe_allow_html=True)
-            st.subheader("🔍 Explore Reviews by Sentiment and Keyword")
+            st.subheader(" Explore Reviews by Sentiment and Keyword")
             selected_sentiment = st.selectbox("Filter by VADER Sentiment", ["All", "Positive", "Negative", "Neutral"])
             keyword = st.text_input("Search keyword in reviews")
             explore_df = filtered_df
             if selected_sentiment != "All":
                 explore_df = explore_df[explore_df['Sentiment_VADER'] == selected_sentiment]
             if keyword:
-                explore_df = explore_df[explore_df[review_col].str.contains(keyword, case=False)]
+                explore_df = explore_df[explore_df[review_col].str.contains(keyword, case=False, na=False)]
             st.write(f"Found {len(explore_df)} matching reviews:")
             st.dataframe(explore_df[[review_col, 'Sentiment_VADER', 'ReviewDate', 'Company']].head(50), use_container_width=True)
             st.markdown('</div>', unsafe_allow_html=True)
 
+            # Feedback Improvement Suggestions
+            st.markdown('<div class="section-container">', unsafe_allow_html=True)
+            st.subheader("  Feedback Improvement Suggestions")
+            
+
+            # Define industry-specific suggestion mappings
+            suggestion_map = {
+                "e-commerce": {
+                    "shipping": "Optimize shipping processes or offer faster delivery options to improve customer satisfaction.",
+                    "product": "Review product quality control processes or provide clearer product descriptions.",
+                    "return": "Simplify the return process or offer more flexible return policies.",
+                    "customer service": "Train customer service staff to handle inquiries more effectively."
+                },
+                "restaurants": {
+                    "service": "Consider staff training or scheduling adjustments to reduce wait times.",
+                    "food": "Review ingredient quality or menu consistency to address food-related complaints.",
+                    "ambiance": "Enhance restaurant ambiance with better lighting or decor.",
+                    "price": "Evaluate pricing strategy or offer promotions to improve perceived value."
+                },
+                "service providers": {
+                    "response": "Improve response times by streamlining communication channels.",
+                    "support": "Enhance customer support training or expand support availability.",
+                    "booking": "Simplify booking processes or offer online scheduling options.",
+                    "quality": "Review service delivery processes to ensure consistent quality."
+                },
+                "generic": {
+                    "service": "Enhance service quality through staff training or process improvements.",
+                    "product": "Maintain high product quality to sustain customer satisfaction.",
+                    "support": "Improve customer support responsiveness and availability."
+                }
+            }
+
+            # Function to get top suggestion for a sentiment category
+            def get_top_suggestion(reviews, sentiment, industry="generic"):
+                if not reviews:
+                    return f"No {sentiment.lower()} feedback available."
+                
+                # Aggregate keywords from all reviews in the sentiment category
+                all_keywords = []
+                for review in reviews:
+                    try:
+                        words = TextBlob(review.lower()).words
+                        keywords = [word for word in words if word not in stopwords and len(word) > 3]
+                        all_keywords.extend(keywords)
+                    except:
+                        continue
+                
+                # Find the most frequent keyword
+                if not all_keywords:
+                    return "Review feedback details and consider general improvements."
+                
+                keyword_counts = Counter(all_keywords)
+                top_keyword = keyword_counts.most_common(1)[0][0]
+                
+                # Get industry-specific suggestions
+                industry_suggestions = suggestion_map.get(industry, suggestion_map["generic"])
+                
+                # Map top keyword to suggestion
+                for keyword, suggestion in industry_suggestions.items():
+                    if keyword in top_keyword:
+                        if sentiment == "Positive":
+                            return f"Continue maintaining high {keyword} quality to sustain customer satisfaction."
+                        elif sentiment == "Neutral":
+                            return f"Consider enhancing {keyword} to improve customer experience."
+                        else:  # Negative
+                            return suggestion
+                
+                # Fallback suggestion
+                if sentiment == "Positive":
+                    return "Continue focusing on overall customer satisfaction."
+                elif sentiment == "Neutral":
+                    return "Explore opportunities to enhance customer experience."
+                else:  # Negative
+                    return "Address common feedback themes to improve customer satisfaction."
+
+            # Add industry selection for suggestion context
+            industry = st.selectbox("Select Industry for Suggestions", ["Generic", "E-commerce", "Restaurants", "Service Providers"])
+
+            # Group reviews by sentiment and generate top suggestions
+            suggestions = []
+            for sentiment in ["Positive", "Negative", "Neutral"]:
+                sentiment_reviews = filtered_df[filtered_df['Sentiment_VADER'] == sentiment][review_col].tolist()
+                suggestion = get_top_suggestion(sentiment_reviews, sentiment, industry.lower())
+                suggestions.append({
+                    "Sentiment": sentiment,
+                    "Top Suggestion": suggestion,
+                    "Review Count": len(sentiment_reviews)
+                })
+
+            # Display suggestions in a dataframe
+            suggestion_df = pd.DataFrame(suggestions)
+            st.dataframe(suggestion_df, use_container_width=True)
+            
+            # Add download button for suggestions
+            output = io.BytesIO()
+            with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                suggestion_df.to_excel(writer, index=False, sheet_name='Top_Suggestions')
+            st.download_button(
+                label="Download Top Suggestions Report",
+                data=output.getvalue(),
+                file_name="top_suggestions_report.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+            st.markdown('</div>', unsafe_allow_html=True)
+
         except Exception as e:
-            st.error(f"Error processing CSV: {str(e)}")
+            st.error(f"Error processing CSV: {str(e)}")
