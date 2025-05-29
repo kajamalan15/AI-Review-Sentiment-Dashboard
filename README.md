@@ -19,3 +19,18 @@ Prerequisites :-
   NLP libraries: vaderSentiment, textblob, transformers (Hugging Face)
   Additional dependencies: pandas, numpy, matplotlib, wordcloud
   Internet access for Hugging Face BERT model (free tier)
+
+
+streamlit==1.38.0
+pandas==2.2.3
+matplotlib==3.10.1
+plotly==6.1.0
+wordcloud==1.9.4
+vaderSentiment==3.3.2
+textblob==0.19.0
+transformers==4.51.3
+chardet==3.0.4
+openpyxl==3.1.5
+torch==2.6.0
+
+Run :- streamlit run app.py
