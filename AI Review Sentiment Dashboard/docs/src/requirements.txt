@@ -13,3 +13,4 @@ nltk==3.8.1
 scipy==1.13.0
 sentencepiece==0.2.0  # Required for transformers
 protobuf==3.20.3  # Often needed for transformers
+#txt
